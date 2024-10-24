@@ -349,138 +349,91 @@ namespace RC5
             }
         }
 
-        public byte[] DecryptDataCBCPad(string filepath)
+        public void DecryptDataCBCPad(string filepath, string filePathToSave)
         {
-            List<byte> decryptedBytes = new List<byte>();
-           
             using (FileStream fileStream = File.OpenRead(filepath))
             {
-                byte[] buffer = new byte[2 * u];
-                int bytesRead;
-                ulong Ci_1_1 = 0;
-                ulong Ci_1_2 = 0;
-                ulong P1;
-                ulong P2;
-                ulong C1;
-                ulong C2;
-                ulong half1;
-                ulong half2;
-                bool decryptIV = false;
-                while ((bytesRead = fileStream.Read(buffer, 0, buffer.Length)) == 2 * u)
+                using (BinaryWriter writer = new BinaryWriter(File.Open(filePathToSave, FileMode.Create)))
                 {
-                    if (!decryptIV)
+                    byte[] buffer = new byte[2 * u];
+                    int bytesRead;
+                    ulong Ci_1_1 = 0;
+                    ulong Ci_1_2 = 0;
+                    ulong P1;
+                    ulong P2;
+                    ulong C1;
+                    ulong C2;
+                    ulong half1;
+                    ulong half2;
+                    bool decryptIV = false;
+                    while ((bytesRead = fileStream.Read(buffer, 0, buffer.Length)) == 2 * u)
                     {
-                        half1 = 0;
-                        half2 = 0;
-                        for (int i = u - 1; i >= 0; i--)
+                        if (!decryptIV)
                         {
-                            half1 = (half1 << 8) | buffer[i];
-                        }
-                        for (int i = 2 * u - 1; i >= u; i--)
-                        {
-                            half2 = (half2 << 8) | buffer[i];
-                        }
-                        C1 = half1;//first half of IV
-                        C2 = half2;//Second half of IV
-                        (Ci_1_1, Ci_1_2) = Decrypt(C1, C2); //Decrypted IV
-                        
-                        decryptIV = true;
+                            half1 = 0;
+                            half2 = 0;
+                            for (int i = u - 1; i >= 0; i--)
+                            {
+                                half1 = (half1 << 8) | buffer[i];
+                            }
+                            for (int i = 2 * u - 1; i >= u; i--)
+                            {
+                                half2 = (half2 << 8) | buffer[i];
+                            }
+                            C1 = half1;//first half of IV
+                            C2 = half2;//Second half of IV
+                            (Ci_1_1, Ci_1_2) = Decrypt(C1, C2); //Decrypted IV
 
-                    }
-                    else
-                    {
-                        half1 = 0;
-                        half2 = 0;
-                        for (int i = u - 1; i >= 0; i--)
-                        {
-                            half1 = (half1 << 8) | buffer[i];
+                            decryptIV = true;
+
                         }
-                        for (int i = 2 * u - 1; i >= u; i--)
+                        else
                         {
-                            half2 = (half2 << 8) | buffer[i];
-                        }
-                        C1 = half1; //reading first half of encrypted block
-                        C2 = half2; //reading second half of encrypted block
-                        (P1, P2) = Decrypt(C1, C2); //Decrypting
-                        P1 = P1 ^ Ci_1_1;
-                        P2 = P2 ^ Ci_1_2; //XOR with previous encrypted block
-                        Ci_1_1 = C1;
-                        Ci_1_2 = C2; //Save Ci for being next Ci-1
+                            half1 = 0;
+                            half2 = 0;
+                            for (int i = u - 1; i >= 0; i--)
+                            {
+                                half1 = (half1 << 8) | buffer[i];
+                            }
+                            for (int i = 2 * u - 1; i >= u; i--)
+                            {
+                                half2 = (half2 << 8) | buffer[i];
+                            }
+                            C1 = half1; //reading first half of encrypted block
+                            C2 = half2; //reading second half of encrypted block
+                            (P1, P2) = Decrypt(C1, C2); //Decrypting
+                            P1 = P1 ^ Ci_1_1;
+                            P2 = P2 ^ Ci_1_2; //XOR with previous encrypted block
+                            Ci_1_1 = C1;
+                            Ci_1_2 = C2; //Save Ci for being next Ci-1
+                            if (fileStream.Position == fileStream.Length)
+                            {
+                                byte[] finalByteBlock = new byte[2 * u];
+                                byte[] p1Bytes = GetBytesAfterDecryption(P1);
+                                byte[] p2Bytes = GetBytesAfterDecryption(P2);
+                                Array.Copy(p1Bytes, 0, finalByteBlock, 0, u);
+                                Array.Copy(p2Bytes, 0, finalByteBlock, u, u);
+
+                                int padBytesCount = finalByteBlock[finalByteBlock.Length - 1];
+                                writer.Write(finalByteBlock[0..(finalByteBlock.Length - padBytesCount)]);
+
+                            }
+                            else
+                            {
+                                writer.Write(GetBytesAfterDecryption(P1));
+                                writer.Write(GetBytesAfterDecryption(P2));
+                            }
 
 
-                        decryptedBytes.AddRange(GetBytesAfterDecryption(P1));
-                        decryptedBytes.AddRange(GetBytesAfterDecryption(P2));
+
+                        }
                     }
                 }
-                byte[] decryptedBytesArray = decryptedBytes.ToArray();
-                int newLength = decryptedBytesArray.Length - (int)decryptedBytesArray[decryptedBytesArray.Length - 1];
-                byte[] finalBytesArray = new byte[newLength];
-                Array.Copy(decryptedBytesArray, finalBytesArray, newLength);
-
-                return finalBytesArray;
-                
-            }
-
-
-        }
-
-        public void TestEncryptionDecryption()
-        {
-            string originalText = "Test string for RC5"; // Текст для тесту
-            byte[] originalBytes = Encoding.UTF8.GetBytes(originalText); // Перетворюємо текст в байти
-
-            Console.WriteLine($"Original bytes: (size= {originalBytes.Length})");
-            PrintBytes(originalBytes); // Виводимо оригінальні байти
-
-            using (MemoryStream inputStream = new MemoryStream(originalBytes))
-            {
-                string encryptedFilePath = "encrypted_data.bin"; // Тимчасовий файл для зберігання шифрованих даних
-
-                // Викликаємо метод шифрування
-                EncryptDataCBCPad(inputStream, encryptedFilePath);
-            }
-
-            Console.WriteLine("\nEncryption Completed. Now Decrypting...\n");
-
-            // Тепер перевіряємо дешифрування
-            byte[] decryptedBytes;
-            using (MemoryStream outputStream = new MemoryStream())
-            {
-                decryptedBytes = DecryptDataCBCPad("encrypted_data.bin");
-
-                // Передбачається, що метод дешифрування пише дані в потік
-               
-            }
-
-            Console.WriteLine("Decyphered bytes:");
-            PrintBytes(decryptedBytes); // Виводимо дешифровані байти
-
-            string decryptedText = Encoding.UTF8.GetString(decryptedBytes); // Перетворюємо байти в рядок
-
-            Console.WriteLine($"\nOriginal Text: {originalText}");
-            Console.WriteLine($"Decrypted Text: {decryptedText}");
-
-            // Звіряємо байти
-            if (originalBytes.SequenceEqual(decryptedBytes))
-            {
-                Console.WriteLine("\nByte test sucessfull.");
-            }
-            else
-            {
-                Console.WriteLine("Byte test failed.");
-            }
-
-            // Звіряємо текст
-            if (originalText == decryptedText)
-            {
-                Console.WriteLine("Text test sucessfull.");
-            }
-            else
-            {
-                Console.WriteLine("Text test failed.");
+  
             }
         }
 
+        
         // Допоміжний метод для виведення байтів
         public void PrintBytes(byte[] bytes)
         {

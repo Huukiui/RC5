@@ -76,12 +76,12 @@ namespace RC5
         static void EcnryptFile(RC5 rc)
         {
             Console.WriteLine("Enter a file name to encrypt:");
-            string inputName = Console.ReadLine();
+            string fileNameToEncrypt = Console.ReadLine();
             Console.WriteLine("Enter a file name to save encrypted string:");
-            string fileName = Console.ReadLine();
-            using (FileStream fs = new FileStream(inputName, FileMode.OpenOrCreate))
+            string fileNameToSave = Console.ReadLine();
+            using (FileStream fs = new FileStream(fileNameToEncrypt, FileMode.OpenOrCreate))
             {
-                rc.EncryptDataCBCPad(fs, fileName);
+                rc.EncryptDataCBCPad(fs, fileNameToSave);
             }
             Console.WriteLine("Press any key to return to main menu...");
             Console.ReadKey();
@@ -107,16 +107,12 @@ namespace RC5
         static void DecryptFile(RC5 rc)
         {
             Console.WriteLine("Enter a file name to decrypt:");
-            string inputName = Console.ReadLine();
-            if (File.Exists(inputName))
+            string fileNameToDecrypt = Console.ReadLine();
+            Console.WriteLine("Enter a file name to save data:");
+            string fileNameToSave = Console.ReadLine();
+            if (File.Exists(fileNameToDecrypt))
             {
-                byte[] result = rc.DecryptDataCBCPad(inputName);
-                Console.WriteLine("\nDecrypted bytes:\n");
-                rc.PrintBytes(result);
-
-                string decryptedText = Encoding.UTF8.GetString(result);
-                Console.WriteLine("\nDecrypted text:\n");
-                Console.WriteLine(decryptedText);    
+                rc.DecryptDataCBCPad(fileNameToDecrypt, fileNameToSave);       
             }
             else
             {
